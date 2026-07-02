@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roster Manager</title>
+<style>
+  :root {
+    --bg:#eef2f7; --card:#ffffff; --fg:#1e293b; --muted:#64748b;
+    --border:#e2e8f0; --accent:#4f46e5; --accent-2:#7c3aed; --accent-weak:#eef2ff;
+    --weekend:#fff7ed; --ok:#059669; --danger:#dc2626;
+    --shadow:0 1px 2px #0f172a0d, 0 4px 12px #0f172a0f;
+    --radius:14px;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    margin:0; font-family:"Segoe UI",Roboto,Arial,sans-serif; font-size:14px;
+    color:var(--fg); background:
+      radial-gradient(1200px 400px at 100% -10%, #ddd6fe55, transparent),
+      radial-gradient(900px 400px at -10% 0%, #bfdbfe55, transparent),
+      var(--bg);
+    min-height:100vh;
+  }
+  header {
+    background:linear-gradient(100deg, var(--accent), var(--accent-2));
+    color:#fff; padding:18px 24px; display:flex; align-items:center; gap:16px;
+    flex-wrap:wrap; box-shadow:var(--shadow); position:sticky; top:0; z-index:20;
+  }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .logo {
+    width:42px; height:42px; border-radius:12px; background:#ffffff22;
+    border:1px solid #ffffff44; display:flex; align-items:center; justify-content:center;
+    font-size:22px; backdrop-filter:blur(4px);
+  }
+  header h1 { font-size:20px; margin:0; font-weight:700; letter-spacing:.2px; }
+  header .sub { font-size:12px; opacity:.9; margin-top:2px; }
+  header .spacer { flex:1; }
+  .team-picker { display:flex; flex-direction:column; gap:3px; }
+  .team-picker label { color:#fff; opacity:.85; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  header select {
+    height:38px; padding:0 12px; border-radius:9px; border:1px solid #ffffff55;
+    background:#ffffff1a; color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  header select option { color:#111; }
+
+  .navbtn {
+    background:#fff; border:1px solid var(--border); color:var(--fg); cursor:pointer;
+    width:34px; height:34px; border-radius:9px; font-size:18px; line-height:1; transition:.15s;
+  }
+  .navbtn:hover { background:#eef2ff; border-color:var(--accent); color:var(--accent); }
+  .navbtn.today { width:auto; padding:0 12px; font-size:13px; font-weight:600; }
+
+  /* Manage button lives in header, keep it light-on-dark, match select size */
+  #manageBtn { height:38px; width:auto; padding:0 14px; font-size:14px; font-weight:600; background:#ffffff1a; border-color:#ffffff55; color:#fff; }
+  #manageBtn:hover { background:#ffffff33; color:#fff; }
+
+  .cal-nav { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  .cal-nav select {
+    padding:8px 9px; border-radius:9px; border:1px solid var(--border);
+    background:#fff; font-size:13px; font-weight:600; cursor:pointer; color:var(--fg);
+  }
+  .cal-nav select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  #monthSel { flex:1; }
+
+  .wrap { display:flex; gap:18px; padding:18px; align-items:flex-start; flex-wrap:wrap; }
+  .panel {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; width:360px; flex:none; box-shadow:var(--shadow);
+  }
+  .grid-panel { flex:1; min-width:540px; overflow:hidden; padding:0; }
+  .grid-head { padding:16px 16px 0; }
+  .grid-scroll { overflow:auto; padding:0 16px 16px; max-height:calc(100vh - 220px); }
+
+  h2 {
+    font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+    margin:0; display:flex; align-items:center; gap:6px;
+  }
+  h2 .count { font-size:11px; color:var(--muted); font-weight:600;
+    background:var(--accent-weak); color:var(--accent); padding:2px 8px; border-radius:20px; }
+  label { color:var(--muted); display:block; margin-bottom:5px; font-size:12px; }
+  select, button { font-family:inherit; font-size:14px; }
+  select.full { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
+  select.full:focus { outline:2px solid var(--accent); outline-offset:1px; }
+
+  .section { margin-bottom:16px; }
+  .section:last-of-type { margin-bottom:14px; }
+  .section-head {
+    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
+  }
+  .toolbar { display:flex; gap:6px; flex-wrap:wrap; }
+  .btn {
+    border:1px solid var(--border); background:#fff; color:var(--fg);
+    padding:8px 12px; border-radius:10px; cursor:pointer; transition:.15s; font-weight:500;
+  }
+  .btn:hover { background:#f1f5f9; border-color:#cbd5e1; transform:translateY(-1px); }
+  .btn:active { transform:translateY(0); }
+  .btn.primary {
+    background:linear-gradient(100deg, var(--accent), var(--accent-2));
+    border:none; color:#fff; font-weight:700; padding:12px; width:100%; font-size:15px;
+    box-shadow:0 6px 16px #4f46e540;
+  }
+  .btn.primary:hover { filter:brightness(1.05); }
+  .btn.ghost { font-size:12px; padding:5px 10px; border-radius:8px; }
+  .box { border:1px solid var(--border); border-radius:12px; padding:8px; max-height:210px; overflow:auto; background:#f8fafc; }
+
+  .check {
+    display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:9px;
+    cursor:pointer; transition:.12s;
+  }
+  .check:hover { background:#eef2ff; }
+  .check input { margin:0; width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+  .avatar {
+    width:28px; height:28px; border-radius:50%; flex:none; color:#fff; font-size:11px;
+    font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .check .nm { font-size:13px; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip {
+    border:1px solid var(--border); border-radius:12px; padding:6px 10px; cursor:pointer;
+    user-select:none; background:#fff; font-size:12px; text-align:center; line-height:1.25; transition:.12s;
+  }
+  .chip:hover { border-color:var(--accent); }
+  .chip small { display:block; color:var(--muted); font-size:10px; }
+  .chip.weekend { background:var(--weekend); border-color:#fed7aa; }
+  .chip.sel { background:linear-gradient(100deg, var(--accent), var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 3px 8px #4f46e540; }
+  .chip.sel small { color:#e0e7ff; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:12px; background:#f1f5f9; padding:4px; border-radius:12px; }
+  .tab { flex:1; text-align:center; padding:9px; border-radius:9px; cursor:pointer; color:var(--muted); font-size:13px; font-weight:600; transition:.15s; }
+  .tab:hover { color:var(--fg); }
+  .tab.active { background:#fff; color:var(--accent); box-shadow:var(--shadow); }
+  .hint { color:var(--muted); font-size:12px; margin:8px 0 0; line-height:1.4; }
+  .hidden { display:none !important; }
+  .status { margin-top:14px; padding:11px 13px; border-radius:10px; font-size:13px; display:none; font-weight:500; }
+  .status.ok { display:block; background:#dcfce7; color:var(--ok); }
+  .status.err { display:block; background:#fee2e2; color:var(--danger); }
+  .status.info { display:block; background:var(--accent-weak); color:var(--accent); }
+
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .stat { flex:1; min-width:90px; background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+  .stat .n { font-size:22px; font-weight:700; color:var(--accent); line-height:1; }
+  .stat .l { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.04em; }
+
+  table { border-collapse:separate; border-spacing:0; background:#fff; font-size:12px; }
+  th, td { border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:6px 8px; white-space:nowrap; text-align:center; min-width:66px; }
+  th:first-child, td:first-child { border-left:1px solid var(--border); }
+  thead th { border-top:1px solid var(--border); }
+  thead tr:first-child th:first-child { border-top-left-radius:10px; }
+  thead tr:first-child th:last-child { border-top-right-radius:10px; }
+  th.name, td.name { text-align:left; position:sticky; left:0; background:#fff; z-index:2; min-width:210px; font-weight:600; }
+  td.name { display:flex; align-items:center; gap:8px; }
+  thead th { position:sticky; top:0; background:#f8fafc; z-index:1; font-weight:600; color:var(--muted); }
+  thead th.name { z-index:3; }
+  thead th.wknd { background:#ffedd5; color:#9a3412; }
+  td.wknd { background:#fff7ed; }
+  td.cell { cursor:pointer; transition:.1s; font-weight:600; }
+  td.cell:hover { outline:2px solid var(--accent); outline-offset:-2px; }
+  td.cell.filled:hover::after { content:'\00d7'; position:relative; margin-left:4px; color:#00000066; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+  .legend .item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); background:#f8fafc; border:1px solid var(--border); padding:4px 9px; border-radius:20px; }
+  .sw { width:12px; height:12px; border-radius:4px; border:1px solid #0002; }
+  .actions-row { display:flex; gap:8px; margin:0 0 14px; flex-wrap:wrap; align-items:center; }
+  .view-toggle { display:inline-flex; background:#f1f5f9; border:1px solid var(--border); border-radius:10px; padding:3px; }
+  .view-toggle .vt { padding:5px 12px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; color:var(--muted); }
+  .view-toggle .vt.active { background:#fff; color:var(--accent); box-shadow:var(--shadow); }
+  #prevWeek, #nextWeek { display:none; }
+  body.week-mode #prevWeek, body.week-mode #nextWeek { display:inline-block; }
+
+  /* Smart-assist buttons, issues panel & badges */
+  .btn.ai { background:linear-gradient(100deg,#ede9fe,#e0f2fe); border-color:#c7d2fe; font-weight:600; }
+  .btn.ai:hover { background:linear-gradient(100deg,#e0e7ff,#dbeafe); border-color:#a5b4fc; }
+  .badge { display:inline-block; min-width:16px; padding:0 5px; border-radius:20px; background:var(--muted); color:#fff; font-size:11px; font-weight:700; margin-left:5px; }
+  .badge.bad { background:var(--danger); }
+  .issues { margin:0 0 14px; border:1px solid var(--border); border-radius:12px; background:#f8fafc; padding:10px; max-height:320px; overflow:auto; }
+  .issues .ih { font-size:12.5px; color:var(--muted); margin:2px 4px 10px; line-height:1.4; }
+  .issues .ih b { color:var(--fg); }
+  .issues .ok-row { font-size:13px; color:var(--ok); padding:8px 6px; font-weight:600; }
+  .igrp { margin-bottom:10px; }
+  .igrp-head { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--fg); padding:4px 4px 6px; }
+  .igrp-count { background:var(--accent-weak); color:var(--accent); border-radius:20px; padding:1px 8px; font-size:11px; }
+  .igrp-desc { font-weight:500; color:var(--muted); font-size:11px; }
+  .irow { display:flex; align-items:flex-start; gap:10px; padding:9px 10px; border-radius:10px; cursor:pointer; border:1px solid transparent; transition:.12s; margin-bottom:4px; background:#fff; }
+  .irow:hover { background:#eef2ff; border-color:#c7d2fe; }
+  .irow .dot { width:9px; height:9px; border-radius:50%; flex:none; margin-top:4px; }
+  .irow.warn { border-left:3px solid var(--danger); }
+  .irow.info { border-left:3px solid var(--accent); }
+  .irow.warn .dot { background:var(--danger); }
+  .irow.info .dot { background:var(--accent); }
+  .irow .itxt { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+  .irow .ititle { font-size:13px; font-weight:600; color:var(--fg); }
+  .irow .idet { font-size:12px; color:var(--muted); line-height:1.35; }
+  .irow .igo { flex:none; align-self:center; font-size:11px; font-weight:600; color:var(--accent); opacity:0; transition:.12s; }
+  .irow:hover .igo { opacity:1; }
+  td.cell.flash { outline:3px solid var(--accent); outline-offset:-3px; animation:cellFlash 1.5s ease; }
+  @keyframes cellFlash { 0%,100% { box-shadow:none; } 30% { box-shadow:0 0 0 5px #4f46e544 inset; } }
+
+  #toasts { position:fixed; top:80px; right:20px; z-index:100; display:flex; flex-direction:column; gap:10px; }
+  .toast {
+    background:#fff; border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:10px; padding:12px 16px; box-shadow:var(--shadow); min-width:240px; max-width:340px;
+    font-size:13px; animation:slideIn .25s ease; display:flex; align-items:center; gap:10px;
+  }
+  .toast.ok { border-left-color:var(--ok); }
+  .toast.err { border-left-color:var(--danger); }
+  .toast .ic { font-size:18px; }
+  @keyframes slideIn { from { opacity:0; transform:translateX(30px); } to { opacity:1; transform:none; } }
+  @keyframes fadeOut { to { opacity:0; transform:translateX(30px); } }
+
+  .print-title { display:none; }
+
+  .modal-bg {
+    position:fixed; inset:0; background:#0f172a80; z-index:200; display:flex;
+    align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(2px);
+  }
+  .modal {
+    background:#fff; border-radius:16px; box-shadow:0 20px 60px #0f172a55;
+    width:720px; max-width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .modal-head {
+    display:flex; align-items:center; justify-content:space-between; padding:16px 20px;
+    background:linear-gradient(100deg, var(--accent), var(--accent-2)); color:#fff;
+  }
+  .modal-head h3 { margin:0; font-size:17px; }
+  .modal-head .navbtn { background:#ffffff22; border-color:#ffffff55; }
+  .modal-body { display:flex; gap:18px; padding:20px; overflow:auto; }
+  .modal-col { flex:1; min-width:0; }
+  .modal-col h4 { margin:0 0 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .badge { background:var(--accent-weak); color:var(--accent); padding:2px 10px; border-radius:20px; font-size:12px; text-transform:none; letter-spacing:0; }
+  .list { border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:10px; max-height:46vh; overflow-y:auto; }
+  .list .row {
+    display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--border);
+  }
+  .list .row:last-child { border-bottom:none; }
+  .list .row.active { background:var(--accent-weak); }
+  .list .row .nm { flex:1; cursor:pointer; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .list .row .cnt { font-size:11px; color:var(--muted); }
+  .iconbtn { border:none; background:transparent; cursor:pointer; font-size:15px; padding:3px 6px; border-radius:6px; color:var(--muted); }
+  .iconbtn:hover { background:#eef2ff; color:var(--accent); }
+  .iconbtn.del:hover { background:#fee2e2; color:var(--danger); }
+  .add-row { display:flex; gap:8px; }
+  .add-row input {
+    flex:1; padding:9px 11px; border:1px solid var(--border); border-radius:10px; font-family:inherit; font-size:14px;
+  }
+  .add-row input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .modal-foot {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 20px; border-top:1px solid var(--border); background:#f8fafc;
+  }
+  .empty { padding:16px; text-align:center; color:var(--muted); font-size:13px; }
+
+  @media print {
+    @page { size:landscape; margin:10mm; }
+    body { background:#fff; }
+    header, #toasts, .wrap > .panel:first-child,
+    .stats, .actions-row, #status,
+    .grid-panel .hint { display:none !important; }
+    .wrap { display:block; padding:0; }
+    .grid-panel { width:100% !important; min-width:0 !important; border:none !important; box-shadow:none !important; padding:0 !important; }
+    .grid-head { padding:0 !important; }
+    .grid-scroll { overflow:visible !important; max-height:none !important; padding:0 !important; }
+    .legend { margin:6px 0 10px !important; }
+    .legend .item { background:#fff; border:1px solid #ccc; }
+    .print-title { display:block; text-align:center; margin:0 0 8px; }
+    .print-title h2 { font-size:18px; font-weight:700; color:#111; margin:0; letter-spacing:0; text-transform:none; }
+    .print-title .meta { font-size:12px; color:#555; margin-top:2px; }
+    table { width:100%; font-size:10px; }
+    th, td { border:1px solid #999 !important; padding:3px 4px !important; }
+    thead th { position:static !important; background:#eee !important; color:#111 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    thead th.wknd { background:#f4e0c4 !important; }
+    td.name, th.name { position:static !important; min-width:150px !important; }
+    td.cell { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .avatar { display:none !important; }
+    td.name { display:table-cell !important; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">🗓️</div>
+    <div>
+      <h1>Roster Manager</h1>
+      <div class="sub">Plan shifts, leaves &amp; weekends — saved right in your browser</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="team-picker">
+    <label>Team</label>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <select id="team"></select>
+      <button class="navbtn" id="manageBtn" title="Add / edit teams &amp; members">⚙ Manage</button>
+    </div>
+  </div>
+</header>
+
+<div id="toasts"></div>
+
+<!-- Manage teams & members modal -->
+<div id="modalBg" class="modal-bg hidden">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Manage teams &amp; members</h3>
+      <button class="navbtn" id="closeModal" title="Close" style="width:34px; padding:0;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-col">
+        <h4>Teams</h4>
+        <div class="list" id="teamList"></div>
+        <div class="add-row">
+          <input type="text" id="newTeam" placeholder="New team name…">
+          <button class="btn" id="addTeam">＋ Add</button>
+        </div>
+      </div>
+      <div class="modal-col">
+        <h4>Members of <span id="editTeamName" class="badge"></span></h4>
+        <div class="list" id="memberList"></div>
+        <div class="add-row">
+          <input type="text" id="newMember" placeholder="New member name…">
+          <button class="btn" id="addMember">＋ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="hint">Changes are saved automatically. Renaming keeps existing roster entries.</span>
+      <button class="btn primary" id="doneModal" style="width:auto;">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- Controls -->
+  <div class="panel">
+    <div class="section">
+      <div class="section-head">
+        <h2>Team members <span class="count" id="memberCount"></span></h2>
+        <div class="toolbar">
+          <button class="btn ghost" data-all="members">All</button>
+          <button class="btn ghost" data-none="members">Clear</button>
+        </div>
+      </div>
+      <div class="box" id="members"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Dates <span class="count" id="dateCount"></span></h2>
+        <div class="toolbar">
+          <button class="btn ghost" data-all="dates">All</button>
+          <button class="btn ghost" data-weekend="dates">Wknd</button>
+          <button class="btn ghost" data-none="dates">Clear</button>
+        </div>
+      </div>
+      <div class="cal-nav">
+        <button class="navbtn" id="prevMonth" title="Previous month">‹</button>
+        <select id="monthSel" title="Select month"></select>
+        <select id="yearSel" title="Select year"></select>
+        <button class="navbtn" id="nextMonth" title="Next month">›</button>
+        <button class="navbtn today" id="todayBtn" title="Jump to current month">Today</button>
+      </div>
+      <div class="box"><div class="chips" id="dates"></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Action</h2>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-tab="shift">Shift</div>
+        <div class="tab" data-tab="leave">Leave</div>
+        <div class="tab" data-tab="weekendNight">Wknd Night</div>
+      </div>
+
+      <div id="tab-shift">
+        <label for="shiftSel">Shift</label>
+        <select id="shiftSel" class="full"></select>
+        <p class="hint" id="shiftHint"></p>
+      </div>
+      <div id="tab-leave" class="hidden">
+        <label for="leaveSel">Leave type</label>
+        <select id="leaveSel" class="full"></select>
+      </div>
+      <div id="tab-weekendNight" class="hidden">
+        <label for="nightSel">Night shift</label>
+        <select id="nightSel" class="full"></select>
+        <p class="hint">Only weekend dates are used. Tip: press “Wknd”.</p>
+      </div>
+    </div>
+
+    <button class="btn primary" id="apply">Apply to roster</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Roster grid -->
+  <div class="panel grid-panel">
+    <div class="print-title" id="printTitle"></div>
+    <div class="grid-head">
+      <div class="stats" id="stats"></div>
+      <div class="actions-row">
+        <div class="view-toggle" id="viewToggle">
+          <span class="vt" data-view="month">Month</span>
+          <span class="vt" data-view="week">Week</span>
+        </div>
+        <button class="btn" id="prevWeek" title="Previous week">‹ Wk</button>
+        <button class="btn" id="nextWeek" title="Next week">Wk ›</button>
+        <button class="btn ai" id="autoFill" title="Auto-generate a fair draft roster for this view">✨ Auto-fill</button>
+        <button class="btn ai" id="checkBtn" title="Check for scheduling issues">⚠ Issues</button>
+        <button class="btn" id="copyPrev" title="Copy last month's roster into this month">⧉ Copy prev month</button>
+        <button class="btn" id="undo" title="Undo last change">↶ Undo</button>
+        <button class="btn" id="clearCell">Erase selected</button>
+        <button class="btn" id="exportCsv">⬇ Export CSV</button>
+        <button class="btn" id="resetAll">Reset all</button>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="issues hidden" id="issuesPanel"></div>
+    </div>
+    <div class="grid-scroll"><div id="grid"></div></div>
+    <p class="hint" style="padding:0 16px 14px;">Tip: click any filled cell to erase it. Changes save automatically in this browser.</p>
+  </div>
+</div>
+
+<script>
+/* =======================================================================
+   DATA — taken from your BOS worksheet. Edit here to add teams/members.
+   Colors are chosen defaults (the real sheet colors aren't available in a
+   standalone app). Adjust the "color" values to match your sheet if needed.
+   ======================================================================= */
+var WEEKDAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTHS = ['January','February','March','April','May','June','July',
+              'August','September','October','November','December'];
+var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// The month currently being viewed/edited.
+var view = { year: new Date().getFullYear(), month: new Date().getMonth() };
+var viewMode = 'month';   // 'month' | 'week'
+var weekStart = 0;        // index (into full month days) of the first day shown in week view
+
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function isoDate(dt) { return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()); }
+function fromIso(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function isWeekendDate(dt) { var g = dt.getDay(); return g === 0 || g === 6; }
+
+// Build the real calendar days for a given year/month (month is 0-based).
+function buildDates(year, month) {
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var out = [];
+  for (var i = 1; i <= daysInMonth; i++) {
+    var dt = new Date(year, month, i);
+    var dow = dt.getDay();
+    out.push({
+      id: isoDate(dt),                              // unique key: YYYY-MM-DD
+      day: i,
+      label: MONTHS_SHORT[month] + ' ' + i,
+      dayName: WEEKDAY[dow],
+      isWeekend: (dow === 0 || dow === 6)
+    });
+  }
+  return out;
+}
+
+var _dates = [];
+function allMonthDates() { return _dates; }
+function dates() {
+  if (viewMode === 'week') return _dates.slice(weekStart, weekStart + 7);
+  return _dates;
+}
+function refreshDates() {
+  _dates = buildDates(view.year, view.month);
+  if (weekStart > _dates.length - 1) weekStart = 0;
+}
+
+var DEFAULT_TEAMS = {
+  BOS: {
+    members: [
+      'Appala Rajesh Lagudu',
+      'Sai Rohit Rajana',
+      'Murali Krishna Kunisetti',
+      'Anand Vamsi Reddy Goluguri',
+      'Pavan Ganesh Pudi',
+      'Madhu Palleti',
+      'Venkatesh Mokara',
+      'Purushottam Naidu Mandala'
+    ]
+  }
+};
+var TEAMS_KEY = 'rosterManagerTeams.v1';
+var TEAMS = loadTeams();
+
+function loadTeams() {
+  try {
+    var t = JSON.parse(localStorage.getItem(TEAMS_KEY));
+    if (t && Object.keys(t).length) return t;
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+}
+function saveTeams() {
+  try { localStorage.setItem(TEAMS_KEY, JSON.stringify(TEAMS)); } catch (e) {}
+}
+
+function teamNames() { return Object.keys(TEAMS); }
+
+function fillTeamSelect() {
+  var sel = byId('team');
+  var names = teamNames();
+  if (names.indexOf(currentTeam) === -1) currentTeam = names[0];
+  sel.innerHTML = names.map(function (t) {
+    return '<option' + (t === currentTeam ? ' selected' : '') + '>' + esc(t) + '</option>';
+  }).join('');
+  sel.value = currentTeam;
+}
+
+// Shift definitions (name, timing, color). isMorning triggers auto weekly-off.
+var SHIFTS = [
+  { label:'Morn',      name:'Morn',      timing:'8am - 6pm',  color:'#c6efce', font:'#0f5132', isMorning:true,  isNight:false },
+  { label:'LateNight', name:'LateNight', timing:'11pm - 8am', color:'#d9d2e9', font:'#3d2c66', isMorning:false, isNight:true  },
+  { label:'Night',     name:'Night',     timing:'6pm - 3am',  color:'#bdd7ee', font:'#1f3864', isMorning:false, isNight:true  }
+];
+
+// Status / leave definitions with colors.
+var STATUSES = {
+  'Weekly Off':   { color:'#f2f2f2', font:'#666666' },
+  'Weekend Work': { color:'#ffe599', font:'#7f6000' },
+  'Comp-off':     { color:'#fce5cd', font:'#7f4f00' },
+  'Leave':        { color:'#f4cccc', font:'#990000' },
+  'PL':           { color:'#f4cccc', font:'#990000' },
+  'CL':           { color:'#f4cccc', font:'#990000' },
+  'SL':           { color:'#f4cccc', font:'#990000' },
+  'Holiday':      { color:'#d9ead3', font:'#274e13' }
+};
+var LEAVE_TYPES = ['Leave','PL','CL','SL','Holiday','Comp-off'];
+var WEEKLY_OFF = 'Weekly Off';
+
+/* =======================================================================
+   STATE  (roster[team][member][col] = { text, color, font })
+   ======================================================================= */
+var STORAGE_KEY = 'rosterManagerData.v1';
+var roster = load();
+var currentTeam = Object.keys(TEAMS)[0];
+var activeTab = 'shift';
+var undoStack = [];
+var coverTarget = 1;    // people-per-shift target used by Auto-fill & Issues checker
+var issuesOpen = false; // whether the Issues panel is visible
+var AVATAR_COLORS = ['#4f46e5','#0891b2','#db2777','#ea580c','#16a34a','#7c3aed','#0d9488','#dc2626','#2563eb','#9333ea'];
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(roster)); } catch (e) {}
+}
+function cellOf(team, member, col) {
+  return (roster[team] && roster[team][member] && roster[team][member][col]) || null;
+}
+function setCell(team, member, col, data) {
+  roster[team] = roster[team] || {};
+  roster[team][member] = roster[team][member] || {};
+  if (data) roster[team][member][col] = data;
+  else delete roster[team][member][col];
+}
+
+/* =======================================================================
+   INIT
+   ======================================================================= */
+document.addEventListener('DOMContentLoaded', function () {
+  fillTeamSelect();
+  var teamSel = byId('team');
+  teamSel.addEventListener('change', function () { currentTeam = teamSel.value; renderAll(); });
+  byId('manageBtn').addEventListener('click', openManage);
+
+  byId('apply').addEventListener('click', apply);
+  byId('undo').addEventListener('click', undo);
+  byId('clearCell').addEventListener('click', eraseSelected);
+  byId('exportCsv').addEventListener('click', exportCsv);
+  byId('resetAll').addEventListener('click', resetAll);
+  byId('prevMonth').addEventListener('click', function () { shiftMonth(-1); });
+  byId('nextMonth').addEventListener('click', function () { shiftMonth(1); });
+  byId('todayBtn').addEventListener('click', function () {
+    var now = new Date(); view.year = now.getFullYear(); view.month = now.getMonth();
+    weekStart = weekStartFor(now.getDate());
+    refreshDates(); syncYear(); renderAll();
+  });
+  byId('yearSel').addEventListener('change', function () {
+    view.year = Number(byId('yearSel').value); refreshDates(); renderAll();
+  });
+  byId('monthSel').addEventListener('change', function () {
+    view.month = Number(byId('monthSel').value); weekStart = 0; refreshDates(); renderAll();
+  });
+  byId('copyPrev').addEventListener('click', copyPrevMonth);
+  byId('autoFill').addEventListener('click', autoFill);
+  byId('checkBtn').addEventListener('click', function () { issuesOpen = !issuesOpen; renderIssues(); });
+  byId('closeModal').addEventListener('click', closeManage);
+  byId('doneModal').addEventListener('click', closeManage);
+  byId('modalBg').addEventListener('click', function (e) { if (e.target === byId('modalBg')) closeManage(); });
+  byId('addTeam').addEventListener('click', addTeam);
+  byId('newTeam').addEventListener('keydown', function (e) { if (e.key === 'Enter') addTeam(); });
+  byId('addMember').addEventListener('click', addMember);
+  byId('newMember').addEventListener('keydown', function (e) { if (e.key === 'Enter') addMember(); });
+  byId('prevWeek').addEventListener('click', function () { shiftWeek(-1); });
+  byId('nextWeek').addEventListener('click', function () { shiftWeek(1); });
+  document.querySelectorAll('#viewToggle .vt').forEach(function (v) {
+    v.addEventListener('click', function () { setView(v.getAttribute('data-view')); });
+  });
+
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.addEventListener('click', function () { setTab(t.getAttribute('data-tab')); });
+  });
+  document.querySelectorAll('[data-all]').forEach(function (b) {
+    b.addEventListener('click', function () { toggleGroup(b.getAttribute('data-all'), true); });
+  });
+  document.querySelectorAll('[data-none]').forEach(function (b) {
+    b.addEventListener('click', function () { toggleGroup(b.getAttribute('data-none'), false); });
+  });
+  document.querySelectorAll('[data-weekend]').forEach(function (b) {
+    b.addEventListener('click', selectWeekends);
+  });
+
+  fillDropdowns();
+  fillMonths();
+  fillYears();
+  setView('month');
+  refreshDates();
+  renderAll();
+});
+
+function fillMonths() {
+  byId('monthSel').innerHTML = MONTHS.map(function (m, i) {
+    return '<option value="' + i + '">' + m + '</option>';
+  }).join('');
+  byId('monthSel').value = view.month;
+}
+
+function fillYears() {
+  var cur = new Date().getFullYear();
+  var opts = '';
+  for (var y = cur - 3; y <= cur + 3; y++) opts += '<option value="' + y + '">' + y + '</option>';
+  byId('yearSel').innerHTML = opts;
+  syncYear();
+}
+function syncYear() {
+  var sel = byId('yearSel');
+  // Ensure the current view year is present even if outside the default range.
+  if (!Array.prototype.some.call(sel.options, function (o) { return Number(o.value) === view.year; })) {
+    var o = document.createElement('option'); o.value = view.year; o.textContent = view.year; sel.appendChild(o);
+  }
+  sel.value = view.year;
+}
+
+function weekStartFor(dayOfMonth) { return Math.floor((dayOfMonth - 1) / 7) * 7; }
+
+function setView(mode) {
+  viewMode = mode;
+  document.body.classList.toggle('week-mode', mode === 'week');
+  document.querySelectorAll('#viewToggle .vt').forEach(function (v) {
+    v.classList.toggle('active', v.getAttribute('data-view') === mode);
+  });
+  renderAll();
+}
+
+function shiftWeek(delta) {
+  var ns = weekStart + delta * 7;
+  if (ns < 0) { shiftMonth(-1); weekStart = Math.floor((allMonthDates().length - 1) / 7) * 7; renderAll(); return; }
+  if (ns > allMonthDates().length - 1) { shiftMonth(1); weekStart = 0; renderAll(); return; }
+  weekStart = ns;
+  renderAll();
+}
+
+function shiftMonth(delta) {
+  var m = view.month + delta;
+  view.year += Math.floor(m / 12);
+  view.month = ((m % 12) + 12) % 12;
+  refreshDates();
+  syncYear();
+  renderAll();
+}
+
+// Copy the previous month's roster into the current month, matching by day-of-month.
+function copyPrevMonth() {
+  var pm = view.month === 0 ? 11 : view.month - 1;
+  var py = view.month === 0 ? view.year - 1 : view.year;
+  var prevDays = buildDates(py, pm);
+  var curDays = buildDates(view.year, view.month);
+  var members = team().members;
+
+  var wouldWrite = 0;
+  members.forEach(function (m) {
+    curDays.forEach(function (d) {
+      var src = prevDays[d.day - 1];
+      if (src && cellOf(currentTeam, m, src.id)) wouldWrite++;
+    });
+  });
+  if (!wouldWrite) return fail('Previous month (' + MONTHS_SHORT[pm] + ' ' + py + ') has no data to copy.');
+  if (!confirm('Copy ' + wouldWrite + ' entries from ' + MONTHS[pm] + ' ' + py +
+      ' into ' + MONTHS[view.month] + ' ' + view.year + '? Existing cells on matching days will be overwritten.')) return;
+
+  pushUndo();
+  var n = 0;
+  members.forEach(function (m) {
+    curDays.forEach(function (d) {
+      var src = prevDays[d.day - 1];
+      if (!src) return;
+      var c = cellOf(currentTeam, m, src.id);
+      if (c) { setCell(currentTeam, m, d.id, { text: c.text, color: c.color, font: c.font }); n++; }
+    });
+  });
+  save(); renderStats(); renderGrid();
+  var msg = 'Copied ' + n + ' entries from ' + MONTHS_SHORT[pm] + ' ' + py + '.';
+  setStatus('ok', msg); toast('ok', msg);
+}
+
+/* =======================================================================
+   MANAGE TEAMS & MEMBERS
+   ======================================================================= */
+var editTeam = null;   // team currently being edited in the modal
+
+function openManage() {
+  editTeam = currentTeam;
+  byId('modalBg').classList.remove('hidden');
+  renderManage();
+}
+function closeManage() {
+  byId('modalBg').classList.add('hidden');
+  fillTeamSelect();
+  renderAll();
+}
+
+function renderManage() {
+  var names = teamNames();
+  if (names.indexOf(editTeam) === -1) editTeam = names[0] || null;
+
+  byId('teamList').innerHTML = names.length ? names.map(function (t) {
+    var count = (TEAMS[t].members || []).length;
+    return '<div class="row' + (t === editTeam ? ' active' : '') + '" data-team="' + esc(t) + '">' +
+      '<span class="nm" data-pick="' + esc(t) + '">' + esc(t) + '</span>' +
+      '<span class="cnt">' + count + '</span>' +
+      '<button class="iconbtn" data-ren-team="' + esc(t) + '" title="Rename">✎</button>' +
+      '<button class="iconbtn del" data-del-team="' + esc(t) + '" title="Delete">🗑</button>' +
+      '</div>';
+  }).join('') : '<div class="empty">No teams yet. Add one below.</div>';
+
+  byId('editTeamName').textContent = editTeam || '—';
+
+  var members = editTeam ? (TEAMS[editTeam].members || []) : [];
+  byId('memberList').innerHTML = members.length ? members.map(function (m, i) {
+    return '<div class="row" data-member="' + esc(m) + '">' +
+      '<span class="nm">' + avatarHtml(m) + ' ' + esc(m) + '</span>' +
+      '<button class="iconbtn" data-mv="up" data-i="' + i + '" title="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="iconbtn" data-mv="down" data-i="' + i + '" title="Move down"' + (i === members.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="iconbtn" data-ren-member="' + esc(m) + '" title="Rename">✎</button>' +
+      '<button class="iconbtn del" data-del-member="' + esc(m) + '" title="Remove">🗑</button>' +
+      '</div>';
+  }).join('') : '<div class="empty">' + (editTeam ? 'No members yet. Add one below.' : 'Create a team first.') + '</div>';
+
+  // Wire row actions
+  document.querySelectorAll('#teamList [data-pick]').forEach(function (el) {
+    el.addEventListener('click', function () { editTeam = el.getAttribute('data-pick'); renderManage(); });
+  });
+  document.querySelectorAll('#teamList [data-ren-team]').forEach(function (el) {
+    el.addEventListener('click', function () { renameTeam(el.getAttribute('data-ren-team')); });
+  });
+  document.querySelectorAll('#teamList [data-del-team]').forEach(function (el) {
+    el.addEventListener('click', function () { deleteTeam(el.getAttribute('data-del-team')); });
+  });
+  document.querySelectorAll('#memberList [data-ren-member]').forEach(function (el) {
+    el.addEventListener('click', function () { renameMember(el.getAttribute('data-ren-member')); });
+  });
+  document.querySelectorAll('#memberList [data-del-member]').forEach(function (el) {
+    el.addEventListener('click', function () { removeMember(el.getAttribute('data-del-member')); });
+  });
+  document.querySelectorAll('#memberList [data-mv]').forEach(function (el) {
+    el.addEventListener('click', function () { moveMember(Number(el.getAttribute('data-i')), el.getAttribute('data-mv')); });
+  });
+}
+
+function addTeam() {
+  var input = byId('newTeam');
+  var name = input.value.trim();
+  if (!name) return toast('err', 'Enter a team name.');
+  if (TEAMS[name]) return toast('err', 'A team named "' + name + '" already exists.');
+  TEAMS[name] = { members: [] };
+  saveTeams();
+  input.value = '';
+  editTeam = name;
+  renderManage();
+  toast('ok', 'Team "' + name + '" added.');
+}
+
+function renameTeam(oldName) {
+  var name = prompt('Rename team "' + oldName + '" to:', oldName);
+  if (name == null) return;
+  name = name.trim();
+  if (!name || name === oldName) return;
+  if (TEAMS[name]) return toast('err', 'A team named "' + name + '" already exists.');
+
+  // Preserve member order and migrate roster data.
+  var rebuilt = {};
+  teamNames().forEach(function (t) { rebuilt[t === oldName ? name : t] = TEAMS[t]; });
+  TEAMS = rebuilt;
+  if (roster[oldName]) { roster[name] = roster[oldName]; delete roster[oldName]; }
+  if (currentTeam === oldName) currentTeam = name;
+  if (editTeam === oldName) editTeam = name;
+  saveTeams(); save();
+  renderManage();
+  toast('ok', 'Renamed to "' + name + '".');
+}
+
+function deleteTeam(name) {
+  if (teamNames().length <= 1) return toast('err', 'At least one team is required.');
+  if (!confirm('Delete team "' + name + '" and all its roster data? This cannot be undone.')) return;
+  delete TEAMS[name];
+  delete roster[name];
+  if (editTeam === name) editTeam = teamNames()[0];
+  if (currentTeam === name) currentTeam = teamNames()[0];
+  saveTeams(); save();
+  renderManage();
+  toast('ok', 'Team "' + name + '" deleted.');
+}
+
+function addMember() {
+  if (!editTeam) return toast('err', 'Create a team first.');
+  var input = byId('newMember');
+  var name = input.value.trim();
+  if (!name) return toast('err', 'Enter a member name.');
+  if (TEAMS[editTeam].members.indexOf(name) !== -1) return toast('err', '"' + name + '" is already in this team.');
+  TEAMS[editTeam].members.push(name);
+  saveTeams();
+  input.value = '';
+  renderManage();
+  toast('ok', '"' + name + '" added to ' + editTeam + '.');
+}
+
+function renameMember(oldName) {
+  var name = prompt('Rename member "' + oldName + '" to:', oldName);
+  if (name == null) return;
+  name = name.trim();
+  if (!name || name === oldName) return;
+  if (TEAMS[editTeam].members.indexOf(name) !== -1) return toast('err', '"' + name + '" already exists.');
+
+  var arr = TEAMS[editTeam].members;
+  arr[arr.indexOf(oldName)] = name;
+  // Migrate roster data for this member.
+  if (roster[editTeam] && roster[editTeam][oldName]) {
+    roster[editTeam][name] = roster[editTeam][oldName];
+    delete roster[editTeam][oldName];
+  }
+  saveTeams(); save();
+  renderManage();
+  toast('ok', 'Renamed to "' + name + '".');
+}
+
+function removeMember(name) {
+  if (!confirm('Remove "' + name + '" from ' + editTeam + '? Their roster entries will be deleted.')) return;
+  var arr = TEAMS[editTeam].members;
+  arr.splice(arr.indexOf(name), 1);
+  if (roster[editTeam]) delete roster[editTeam][name];
+  saveTeams(); save();
+  renderManage();
+  toast('ok', '"' + name + '" removed.');
+}
+
+function moveMember(i, dir) {
+  var arr = TEAMS[editTeam].members;
+  var j = dir === 'up' ? i - 1 : i + 1;
+  if (j < 0 || j >= arr.length) return;
+  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  saveTeams();
+  renderManage();
+}
+
+function fillDropdowns() {
+  byId('shiftSel').innerHTML = SHIFTS.map(function (s) {
+    return '<option value="' + esc(s.label) + '">' + esc(s.name) + ' — ' + esc(s.timing) + '</option>';
+  }).join('');
+  var nights = SHIFTS.filter(function (s) { return s.isNight; });
+  byId('nightSel').innerHTML = nights.map(function (s) {
+    return '<option value="' + esc(s.label) + '">' + esc(s.name) + ' — ' + esc(s.timing) + '</option>';
+  }).join('');
+  byId('leaveSel').innerHTML = LEAVE_TYPES.map(function (l) {
+    return '<option>' + esc(l) + '</option>';
+  }).join('');
+  byId('shiftSel').addEventListener('change', updateShiftHint);
+  updateShiftHint();
+}
+
+function updateShiftHint() {
+  var s = shiftByLabel(byId('shiftSel').value);
+  byId('shiftHint').textContent = (s && s.isMorning)
+    ? 'Weekend morning shift auto-adds “Weekly Off” for the next two days.'
+    : '';
+}
+
+/* =======================================================================
+   RENDER
+   ======================================================================= */
+function renderAll() {
+  var mSel = byId('monthSel'); if (mSel) mSel.value = view.month;
+  syncYear();
+  var range = '';
+  var ds = dates();
+  if (viewMode === 'week' && ds.length) {
+    range = ' — ' + ds[0].label + ' to ' + ds[ds.length - 1].label;
+  }
+  byId('printTitle').innerHTML =
+    '<h2>' + esc(currentTeam) + ' Roster — ' + esc(MONTHS[view.month] + ' ' + view.year) + '</h2>' +
+    '<div class="meta">' + esc(team().members.length + ' members' + range) + '</div>';
+  renderMembers();
+  renderDates();
+  renderLegend();
+  renderStats();
+  renderGrid();
+  renderIssues();
+}
+
+function team() { return TEAMS[currentTeam]; }
+
+function initials(name) {
+  var p = name.trim().split(/\s+/);
+  return ((p[0] ? p[0][0] : '') + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+}
+function avatarColor(name) {
+  var h = 0;
+  for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function avatarHtml(name) {
+  return '<span class="avatar" style="background:' + avatarColor(name) + '">' + esc(initials(name)) + '</span>';
+}
+
+function renderMembers() {
+  byId('members').innerHTML = team().members.map(function (m) {
+    return '<label class="check">' +
+      '<input type="checkbox" class="m" value="' + esc(m) + '">' +
+      avatarHtml(m) + '<span class="nm">' + esc(m) + '</span></label>';
+  }).join('');
+  byId('memberCount').textContent = team().members.length;
+}
+
+function renderDates() {
+  byId('dates').innerHTML = dates().map(function (d) {
+    return '<div class="chip' + (d.isWeekend ? ' weekend' : '') + '" data-id="' + d.id +
+      '" data-weekend="' + d.isWeekend + '">' + esc('' + d.day) + '<small>' + esc(d.dayName) + '</small></div>';
+  }).join('');
+  byId('dateCount').textContent = dates().length;
+  document.querySelectorAll('#dates .chip').forEach(function (c) {
+    c.addEventListener('click', function () { c.classList.toggle('sel'); });
+  });
+}
+
+function renderStats() {
+  var ds = dates();
+  var filled = 0, offDays = 0, leaves = 0;
+  var leaveWords = ['Leave','PL','CL','SL','Holiday'];
+  team().members.forEach(function (m) {
+    ds.forEach(function (d) {
+      var c = cellOf(currentTeam, m, d.id);
+      if (!c) return;
+      filled++;
+      if (c.text === WEEKLY_OFF) offDays++;
+      if (leaveWords.indexOf(c.text) !== -1) leaves++;
+    });
+  });
+  var total = team().members.length * ds.length;
+  var pct = total ? Math.round(filled / total * 100) : 0;
+  byId('stats').innerHTML =
+    stat(filled, 'Assigned') +
+    stat(pct + '%', 'Coverage') +
+    stat(offDays, 'Weekly Off') +
+    stat(leaves, 'On Leave');
+}
+function stat(n, label) {
+  return '<div class="stat"><div class="n">' + n + '</div><div class="l">' + esc(label) + '</div></div>';
+}
+
+function renderLegend() {
+  var items = SHIFTS.map(function (s) { return legendItem(s.name, s.color); });
+  Object.keys(STATUSES).forEach(function (k) {
+    if (['PL','CL','SL'].indexOf(k) !== -1) return;
+    items.push(legendItem(k, STATUSES[k].color));
+  });
+  byId('legend').innerHTML = items.join('');
+}
+function legendItem(label, color) {
+  return '<div class="item"><span class="sw" style="background:' + color + '"></span>' + esc(label) + '</div>';
+}
+
+function renderGrid() {
+  var ds = dates();
+  var html = '<table><thead><tr><th class="name">Member</th>';
+  ds.forEach(function (d) {
+    html += '<th class="' + (d.isWeekend ? 'wknd' : '') + '">' + esc('' + d.day) +
+      '<br><small style="color:#8a94a0">' + esc(d.dayName) + '</small></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  team().members.forEach(function (m) {
+    html += '<tr><td class="name">' + avatarHtml(m) + '<span>' + esc(m) + '</span></td>';
+    ds.forEach(function (d) {
+      var c = cellOf(currentTeam, m, d.id);
+      var style = c ? ('background:' + c.color + ';color:' + (c.font || '#000')) : '';
+      var cls = 'cell' + (d.isWeekend ? ' wknd' : '') + (c ? ' filled' : '');
+      html += '<td class="' + cls + '" data-m="' + esc(m) + '" data-id="' + d.id + '" style="' + style + '" title="' +
+        esc(m) + ' — ' + esc(d.label) + ' (' + esc(d.dayName) + ')' + (c ? ': ' + esc(c.text) : '') + '">' +
+        (c ? esc(c.text) : '') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  byId('grid').innerHTML = html;
+
+  document.querySelectorAll('#grid td.cell').forEach(function (td) {
+    td.addEventListener('click', function () {
+      var m = td.getAttribute('data-m'), id = td.getAttribute('data-id');
+      if (!cellOf(currentTeam, m, id)) return;
+      pushUndo();
+      setCell(currentTeam, m, id, null);
+      save(); renderStats(); renderGrid();
+      toast('ok', 'Cell erased.');
+    });
+  });
+}
+
+/* =======================================================================
+   ACTIONS
+   ======================================================================= */
+function setTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.classList.toggle('active', t.getAttribute('data-tab') === name);
+  });
+  ['shift','leave','weekendNight'].forEach(function (n) {
+    byId('tab-' + n).classList.toggle('hidden', n !== name);
+  });
+  if (name === 'weekendNight') selectWeekends();
+}
+
+function selectedMembers() {
+  return Array.prototype.map.call(document.querySelectorAll('#members .m:checked'), function (c) { return c.value; });
+}
+function selectedIds() {
+  return Array.prototype.map.call(document.querySelectorAll('#dates .chip.sel'), function (c) { return c.getAttribute('data-id'); });
+}
+
+function toggleGroup(kind, on) {
+  if (kind === 'members') {
+    document.querySelectorAll('#members .m').forEach(function (c) { c.checked = on; });
+  } else {
+    document.querySelectorAll('#dates .chip').forEach(function (c) { c.classList.toggle('sel', on); });
+  }
+}
+function selectWeekends() {
+  document.querySelectorAll('#dates .chip').forEach(function (c) {
+    c.classList.toggle('sel', c.getAttribute('data-weekend') === 'true');
+  });
+}
+
+function apply() {
+  var members = selectedMembers();
+  var ids = selectedIds();
+  if (!members.length) return fail('Select at least one team member.');
+  if (!ids.length) return fail('Select at least one date.');
+
+  var count = 0, autoOff = 0;
+
+  if (activeTab === 'shift' || activeTab === 'weekendNight') {
+    var s = activeTab === 'shift' ? shiftByLabel(byId('shiftSel').value) : shiftByLabel(byId('nightSel').value);
+    var useIds = ids;
+    if (activeTab === 'weekendNight') {
+      useIds = ids.filter(function (id) { return isWeekendDate(fromIso(id)); });
+      if (!useIds.length) return fail('Select at least one weekend date for a weekend night shift.');
+    }
+    pushUndo();
+    members.forEach(function (m) {
+      useIds.forEach(function (id) {
+        setCell(currentTeam, m, id, { text: s.timing, color: s.color, font: s.font });
+        count++;
+        if (s.isMorning && isWeekendDate(fromIso(id))) {
+          weeklyOffIds(id).forEach(function (offId) {
+            var st = STATUSES[WEEKLY_OFF];
+            setCell(currentTeam, m, offId, { text: WEEKLY_OFF, color: st.color, font: st.font });
+            autoOff++;
+          });
+        }
+      });
+    });
+  } else if (activeTab === 'leave') {
+    var label = byId('leaveSel').value;
+    var st = STATUSES[label] || STATUSES['Leave'];
+    pushUndo();
+    members.forEach(function (m) {
+      ids.forEach(function (id) {
+        setCell(currentTeam, m, id, { text: label, color: st.color, font: st.font });
+        count++;
+      });
+    });
+  }
+
+  save();
+  renderStats();
+  renderGrid();
+  var msg = 'Updated ' + count + ' cell' + (count === 1 ? '' : 's') + '.';
+  if (autoOff) msg += ' Auto-added ' + autoOff + ' Weekly Off.';
+  setStatus('ok', msg);
+  toast('ok', msg);
+}
+
+// Next two calendar days after the weekend that contains `weekendId`.
+// Uses real dates, so it correctly carries into the following month.
+function weeklyOffIds(weekendId) {
+  var d = fromIso(weekendId);
+  do { d.setDate(d.getDate() + 1); } while (isWeekendDate(d)); // skip rest of weekend
+  var out = [];
+  for (var k = 0; k < 2; k++) { out.push(isoDate(d)); d.setDate(d.getDate() + 1); }
+  return out;
+}
+
+function eraseSelected() {
+  var members = selectedMembers(), ids = selectedIds();
+  if (!members.length || !ids.length) return fail('Select members and dates to erase.');
+  pushUndo();
+  var n = 0;
+  members.forEach(function (m) { ids.forEach(function (id) { setCell(currentTeam, m, id, null); n++; }); });
+  save(); renderStats(); renderGrid();
+  var msg = 'Erased ' + n + ' cell' + (n === 1 ? '' : 's') + '.';
+  setStatus('ok', msg); toast('ok', msg);
+}
+
+function resetAll() {
+  if (!confirm('This clears ALL roster entries for every team in this browser. Continue?')) return;
+  pushUndo();
+  roster = {}; save(); renderStats(); renderGrid();
+  setStatus('info', 'All roster data cleared.'); toast('ok', 'All roster data cleared.');
+}
+
+function exportCsv() {
+  var ds = dates();
+  var rows = [];
+  rows.push(['Member'].concat(ds.map(function (d) { return d.label + ' (' + d.dayName + ')'; })));
+  team().members.forEach(function (m) {
+    var row = [m];
+    ds.forEach(function (d) {
+      var c = cellOf(currentTeam, m, d.id);
+      row.push(c ? c.text : '');
+    });
+    rows.push(row);
+  });
+  var csv = rows.map(function (r) {
+    return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\r\n');
+  var blob = new Blob([csv], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = currentTeam + '-' + MONTHS_SHORT[view.month] + view.year + '-roster.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* =======================================================================
+   SMART ASSIST — auto-fill draft + issue checker (no AI service needed)
+   ======================================================================= */
+
+// Shift worked on the calendar day before `id` (or null). Reads live roster.
+function prevDayShift(m, id) {
+  var d = fromIso(id); d.setDate(d.getDate() - 1);
+  var c = cellOf(currentTeam, m, isoDate(d));
+  return c ? shiftByTiming(c.text) : null;
+}
+// Count of consecutive working days immediately before `id`.
+function priorStreak(m, id) {
+  var d = fromIso(id), n = 0;
+  for (var i = 0; i < 31; i++) {
+    d.setDate(d.getDate() - 1);
+    var c = cellOf(currentTeam, m, isoDate(d));
+    if (c && shiftByTiming(c.text)) n++; else break;
+  }
+  return n;
+}
+
+// Auto-generate a fair draft roster for the dates currently in view.
+function autoFill() {
+  var ds = dates();
+  var members = team().members.slice();
+  if (!ds.length) return fail('No dates to fill.');
+  if (!members.length) return fail('This team has no members.');
+
+  var def = Math.max(1, Math.round(members.length / SHIFTS.length));
+  var ans = prompt(
+    'Auto-fill a draft roster for ' +
+    (viewMode === 'week' ? 'this week' : MONTHS[view.month] + ' ' + view.year) + '.\n\n' +
+    'How many people per shift, per day?\n' +
+    '(Team has ' + members.length + ' members across ' + SHIFTS.length + ' shifts.)',
+    String(def));
+  if (ans === null) return;
+  var cover = Math.floor(Number(ans));
+  if (!cover || cover < 1) return fail('Coverage must be a number of at least 1.');
+  coverTarget = cover;
+
+  // Fairness counters. Seed from the WHOLE month so the draft balances against
+  // shifts you already placed manually.
+  var shiftCount = {}, totalCount = {}, weekendCount = {};
+  members.forEach(function (m) {
+    shiftCount[m] = {}; totalCount[m] = 0; weekendCount[m] = 0;
+    SHIFTS.forEach(function (s) { shiftCount[m][s.label] = 0; });
+  });
+  allMonthDates().forEach(function (d) {
+    members.forEach(function (m) {
+      var c = cellOf(currentTeam, m, d.id);
+      var sh = c && shiftByTiming(c.text);
+      if (!sh) return;
+      shiftCount[m][sh.label]++; totalCount[m]++;
+      if (d.isWeekend) weekendCount[m]++;
+    });
+  });
+
+  pushUndo();
+  var assigned = 0, autoOff = 0;
+
+  ds.forEach(function (d) {
+    var busy = {}, usedToday = {};
+    members.forEach(function (m) { if (cellOf(currentTeam, m, d.id)) busy[m] = true; });
+
+    SHIFTS.forEach(function (s) {
+      var pool = members.filter(function (m) {
+        if (busy[m] || usedToday[m]) return false;
+        // No-rest rule: don't put a Morning shift on someone who worked Night yesterday.
+        if (s.isMorning) { var pv = prevDayShift(m, d.id); if (pv && pv.isNight) return false; }
+        // Streak rule: force a rest day before a 7th consecutive working day.
+        if (priorStreak(m, d.id) >= 6) return false;
+        return true;
+      });
+      pool.sort(function (a, b) {
+        if (d.isWeekend && weekendCount[a] !== weekendCount[b]) return weekendCount[a] - weekendCount[b];
+        if (shiftCount[a][s.label] !== shiftCount[b][s.label]) return shiftCount[a][s.label] - shiftCount[b][s.label];
+        return totalCount[a] - totalCount[b];
+      });
+      var take = Math.min(cover, pool.length);
+      for (var i = 0; i < take; i++) {
+        var m = pool[i];
+        setCell(currentTeam, m, d.id, { text: s.timing, color: s.color, font: s.font });
+        assigned++; usedToday[m] = true;
+        shiftCount[m][s.label]++; totalCount[m]++;
+        if (d.isWeekend) weekendCount[m]++;
+        if (s.isMorning && isWeekendDate(fromIso(d.id))) {
+          weeklyOffIds(d.id).forEach(function (offId) {
+            if (cellOf(currentTeam, m, offId)) return;
+            var st = STATUSES[WEEKLY_OFF];
+            setCell(currentTeam, m, offId, { text: WEEKLY_OFF, color: st.color, font: st.font });
+            autoOff++;
+          });
+        }
+      }
+    });
+  });
+
+  save(); renderStats(); renderGrid(); renderIssues();
+  var left = computeIssues();
+  var msg = 'Auto-filled ' + assigned + ' shift' + (assigned === 1 ? '' : 's') +
+    (autoOff ? ' + ' + autoOff + ' Weekly Off' : '') + '.';
+  if (left.length) {
+    msg += ' ' + left.length + ' item' + (left.length === 1 ? '' : 's') +
+      ' left (usually not enough people to cover every shift). Open ⚠ Issues to review.';
+  } else {
+    msg += ' No scheduling issues — looks good!';
+  }
+  setStatus(left.length ? 'info' : 'ok', msg); toast(left.length ? 'err' : 'ok', msg);
+}
+
+// Scan the visible roster for scheduling problems.
+// Each issue: { cat, level('warn'|'info'), title, detail, m, id }
+function computeIssues() {
+  var ds = dates(), members = team().members, out = [];
+  if (!members.length || !ds.length) return out;
+
+  function dayLabel(d) { return d.dayName + ' ' + MONTHS_SHORT[view.month] + ' ' + d.day; }
+
+  // Count how many people are on a given shift on a given day.
+  function shiftCountOn(d, s) {
+    var n = 0;
+    members.forEach(function (m) {
+      var c = cellOf(currentTeam, m, d.id);
+      if (c && c.text === s.timing) n++;
+    });
+    return n;
+  }
+  // Total shift assignments on a day (across all shifts).
+  function dayWorkTotal(d) {
+    var n = 0; SHIFTS.forEach(function (s) { n += shiftCountOn(d, s); });
+    return n;
+  }
+
+  // Only check coverage for shifts the team actually runs in this view,
+  // so unused shifts (e.g. a second night shift you never assign) aren't flagged.
+  var activeShifts = SHIFTS.filter(function (s) {
+    return ds.some(function (d) { return shiftCountOn(d, s) > 0; });
+  });
+
+  // A) Coverage: for working days only, flag active shifts below the target.
+  ds.forEach(function (d) {
+    if (dayWorkTotal(d) === 0) return;         // nobody works this day → treat as an off day, skip.
+    activeShifts.forEach(function (s) {
+      var cnt = shiftCountOn(d, s);
+      if (cnt >= coverTarget) return;
+      if (cnt === 0) return;                    // this shift simply isn't run today → not a gap.
+      out.push({
+        cat: 'Coverage',
+        level: 'info',
+        title: 'Understaffed: ' + s.name + ' shift',
+        detail: dayLabel(d) + ' has ' + cnt + ' of ' + coverTarget + ' needed on ' + s.name + '.',
+        id: d.id
+      });
+    });
+  });
+
+  // B) No rest: a night shift followed by a morning shift the next day.
+  members.forEach(function (m) {
+    ds.forEach(function (d) {
+      var c = cellOf(currentTeam, m, d.id);
+      var sh = c && shiftByTiming(c.text);
+      if (!sh || !sh.isNight) return;
+      var nx = fromIso(d.id); nx.setDate(nx.getDate() + 1);
+      var nid = isoDate(nx);
+      var nc = cellOf(currentTeam, m, nid);
+      var nsh = nc && shiftByTiming(nc.text);
+      if (nsh && nsh.isMorning) {
+        out.push({
+          cat: 'Rest',
+          level: 'warn',
+          title: m + ' — no rest after night',
+          detail: 'Works ' + sh.name + ' on ' + dayLabel(d) + ', then ' + nsh.name + ' the next morning.',
+          m: m, id: nid
+        });
+      }
+    });
+  });
+
+  // C) Long streak: 7+ consecutive shift days without a rest day.
+  members.forEach(function (m) {
+    var streak = 0, startLabel = '';
+    ds.forEach(function (d, i) {
+      var c = cellOf(currentTeam, m, d.id);
+      if (c && shiftByTiming(c.text)) {
+        if (streak === 0) startLabel = dayLabel(d);
+        streak++;
+      } else {
+        if (streak >= 7) out.push({
+          cat: 'Rest', level: 'warn',
+          title: m + ' — ' + streak + ' days without a break',
+          detail: 'Scheduled ' + streak + ' days straight starting ' + startLabel + '. Give a rest day.',
+          m: m, id: ds[i - 1].id
+        });
+        streak = 0;
+      }
+    });
+    if (streak >= 7) out.push({
+      cat: 'Rest', level: 'warn',
+      title: m + ' — ' + streak + ' days without a break',
+      detail: 'Scheduled ' + streak + ' days straight starting ' + startLabel + '. Give a rest day.',
+      m: m, id: ds[ds.length - 1].id
+    });
+  });
+
+  // D) Workload imbalance across the visible range.
+  if (members.length > 1) {
+    var totals = members.map(function (m) {
+      var t = 0;
+      ds.forEach(function (d) { var c = cellOf(currentTeam, m, d.id); if (c && shiftByTiming(c.text)) t++; });
+      return { m: m, t: t };
+    });
+    var mx = totals[0], mn = totals[0];
+    totals.forEach(function (o) { if (o.t > mx.t) mx = o; if (o.t < mn.t) mn = o; });
+    if (mx.t - mn.t >= 4) {
+      out.push({
+        cat: 'Balance', level: 'info',
+        title: 'Uneven workload',
+        detail: mx.m + ' has ' + mx.t + ' shifts but ' + mn.m + ' has only ' + mn.t + '. Consider evening out.',
+        m: mx.m
+      });
+    }
+  }
+
+  // E) Weekend overload: works every weekend day in view.
+  var wknds = ds.filter(function (d) { return d.isWeekend; });
+  if (wknds.length >= 2) {
+    members.forEach(function (m) {
+      var w = 0;
+      wknds.forEach(function (d) { var c = cellOf(currentTeam, m, d.id); if (c && shiftByTiming(c.text)) w++; });
+      if (w === wknds.length) out.push({
+        cat: 'Balance', level: 'info',
+        title: m + ' — works every weekend',
+        detail: 'Scheduled on all ' + wknds.length + ' weekend days in view. Rotate weekends if possible.',
+        m: m, id: wknds[0].id
+      });
+    });
+  }
+
+  return out;
+}
+
+// Render the issues panel + update the button badge.
+function renderIssues() {
+  var list = computeIssues();
+  var btn = byId('checkBtn');
+  var warns = 0;
+  list.forEach(function (i) { if (i.level === 'warn') warns++; });
+  if (btn) {
+    btn.innerHTML = '⚠ Issues' +
+      (list.length ? ' <span class="badge' + (warns ? ' bad' : '') + '">' + list.length + '</span>' : '');
+  }
+  var panel = byId('issuesPanel');
+  panel.classList.toggle('hidden', !issuesOpen);
+  if (!issuesOpen) return;
+
+  if (!list.length) {
+    panel.innerHTML = '<div class="ok-row">✓ All good — no scheduling issues for this view.</div>';
+    return;
+  }
+
+  // Group issues by category for readability.
+  var CAT_ORDER = ['Coverage', 'Rest', 'Balance'];
+  var CAT_ICON = { Coverage: '👥', Rest: '😴', Balance: '⚖️' };
+  var CAT_DESC = {
+    Coverage: 'Not enough people on a shift',
+    Rest: 'Not enough rest between shifts',
+    Balance: 'Work is spread unevenly'
+  };
+  var groups = {};
+  list.forEach(function (it, idx) { it._idx = idx; (groups[it.cat] = groups[it.cat] || []).push(it); });
+
+  var html =
+    '<div class="ih">' +
+      '<b>' + list.length + ' issue' + (list.length === 1 ? '' : 's') + '</b> — ' +
+      warns + ' need fixing, ' + (list.length - warns) + ' to review. Click any item to jump to it.' +
+    '</div>';
+
+  CAT_ORDER.forEach(function (cat) {
+    var items = groups[cat];
+    if (!items || !items.length) return;
+    html += '<div class="igrp">' +
+      '<div class="igrp-head">' + CAT_ICON[cat] + ' ' + cat +
+        ' <span class="igrp-count">' + items.length + '</span>' +
+        '<span class="igrp-desc">' + CAT_DESC[cat] + '</span></div>';
+    html += items.map(function (it) {
+      return '<div class="irow ' + it.level + '" data-idx="' + it._idx + '">' +
+        '<span class="dot" title="' + (it.level === 'warn' ? 'Needs fixing' : 'Worth reviewing') + '"></span>' +
+        '<span class="itxt"><span class="ititle">' + esc(it.title) + '</span>' +
+        '<span class="idet">' + esc(it.detail) + '</span></span>' +
+        (it.id ? '<span class="igo">Locate ›</span>' : '') +
+        '</div>';
+    }).join('');
+    html += '</div>';
+  });
+
+  panel.innerHTML = html;
+  panel.querySelectorAll('.irow').forEach(function (r) {
+    r.addEventListener('click', function () {
+      var it = list[Number(r.getAttribute('data-idx'))];
+      if (it.id) focusCell(it.m, it.id);
+    });
+  });
+}
+
+// Scroll to and briefly highlight a cell (by member+date, or first cell of a date).
+function focusCell(m, id) {
+  var tds = document.querySelectorAll('#grid td.cell');
+  for (var i = 0; i < tds.length; i++) {
+    var td = tds[i];
+    if (td.getAttribute('data-id') !== id) continue;
+    if (m && td.getAttribute('data-m') !== m) continue;
+    td.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    td.classList.add('flash');
+    (function (el) { setTimeout(function () { el.classList.remove('flash'); }, 1500); })(td);
+    return;
+  }
+}
+
+/* =======================================================================
+   HELPERS
+   ======================================================================= */
+function pushUndo() {
+  undoStack.push(JSON.stringify(roster));
+  if (undoStack.length > 30) undoStack.shift();
+}
+function undo() {
+  if (!undoStack.length) return toast('err', 'Nothing to undo.');
+  roster = JSON.parse(undoStack.pop());
+  save(); renderStats(); renderGrid();
+  toast('ok', 'Undid last change.');
+}
+
+var toastTimer = 0;
+function toast(kind, msg) {
+  var box = byId('toasts');
+  var el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  var ic = kind === 'err' ? '⚠️' : (kind === 'ok' ? '✅' : 'ℹ️');
+  el.innerHTML = '<span class="ic">' + ic + '</span><span>' + esc(msg) + '</span>';
+  box.appendChild(el);
+  setTimeout(function () {
+    el.style.animation = 'fadeOut .3s forwards';
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+  }, 2800);
+}
+function fail(msg) { setStatus('err', msg); toast('err', msg); }
+
+function shiftByLabel(label) { return SHIFTS.filter(function (s) { return s.label === label; })[0]; }
+function shiftByTiming(t) { return SHIFTS.filter(function (s) { return s.timing === t; })[0] || null; }
+function setStatus(kind, msg) { var el = byId('status'); el.className = 'status ' + kind; el.textContent = msg; }
+function byId(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
